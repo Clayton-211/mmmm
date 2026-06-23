@@ -1,0 +1,60 @@
+import numpy as np,cv2,os,matplotlib.pyplot as plt
+from sklearn.datasets import fetch_olivetti_faces
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+path = r"C:\Users\Admin\Downloads\Faces (2)\olivetti_faces.npy"
+
+imgs, labels = (np.load(path), np.array([i//10 for i in range(len(np.load(path)))])) \
+if os.path.exists(path) else (lambda d:(d.images,d.target))(fetch_olivetti_faces())
+
+print("Dataset:", imgs.shape, "| Classes:", len(np.unique(labels)))
+
+imgs = np.array([
+    cv2.cvtColor((i*255).astype("uint8"), cv2.COLOR_GRAY2BGR)
+    for i in imgs
+])
+
+features = np.array([
+    np.hstack([
+        cv2.normalize(
+            cv2.calcHist([im],[c],None,[256],[0,256]),
+            None
+        ).flatten()
+        for c in range(3)
+    ])
+    for im in imgs
+])
+
+print("Feature Shape:", features.shape)
+
+Xtr, Xte, Ytr, Yte, Imtr, Imte = train_test_split(
+    features,
+    labels,
+    imgs,
+    test_size=0.2,
+    random_state=42,
+    stratify=labels
+)
+
+model = RandomForestClassifier(
+    n_estimators=200,
+    random_state=42
+).fit(Xtr, Ytr)
+
+pred = model.predict(Xte)
+
+print("Accuracy:", round(accuracy_score(Yte, pred)*100, 2), "%")
+
+plt.figure(figsize=(10,8))
+
+for i in range(6):
+    plt.subplot(2,3,i+1)
+    plt.imshow(cv2.cvtColor(Imte[i], cv2.COLOR_BGR2RGB))
+    plt.title(f"A:{Yte[i]} | P:{pred[i]}")
+    plt.axis("off")
+
+plt.suptitle("Color Face Recognition Output")
+plt.tight_layout()
+plt.show()
